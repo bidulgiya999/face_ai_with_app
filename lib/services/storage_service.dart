@@ -30,7 +30,7 @@ class StorageService {
 
   /// 이미지 파일 업로드
   /// - 파일 업로드 및 URL 반환
-  Future<String?> uploadImage(File imageFile) async {
+  Future<String?> uploadImage(File imageFile, {String? fileName}) async {
     try {
       final client = await clientViaServiceAccount(
         _credentials,
@@ -39,9 +39,7 @@ class StorageService {
 
       final storage = StorageApi(client);
       
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final extension = path.extension(imageFile.path);
-      final fileName = 'face_image_$timestamp$extension';
+      fileName ??= 'face_image_${DateTime.now().millisecondsSinceEpoch}${path.extension(imageFile.path)}';
 
       final fileContent = await imageFile.readAsBytes();
       final media = Media(

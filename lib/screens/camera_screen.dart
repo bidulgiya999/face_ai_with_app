@@ -9,37 +9,119 @@ import 'package:provider/provider.dart';
 import 'package:camera/camera.dart';
 import '../providers/camera_provider.dart';
 import '../widgets/oval_guide.dart';
-import 'display_screen.dart';
+import 'photo_review_screen.dart';
+import '../providers/photo_provider.dart';
+import '../constants/photo_types.dart';
+import '../widgets/photo_preview.dart';
+import '../utils/image_utils.dart';
+import 'dart:io';
 
-class CameraScreen extends StatelessWidget {
+class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
+
+  @override
+  State<CameraScreen> createState() => _CameraScreenState();
+}
+
+class _CameraScreenState extends State<CameraScreen> {
+  final PageController _pageController = PageController(initialPage: 0);
+  late List<FacePhotoType> _photoTypes;
+
+  @override
+  void initState() {
+    super.initState();
+    _photoTypes = [FacePhotoType.front, FacePhotoType.left, FacePhotoType.right];
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final cameraProvider = Provider.of<CameraProvider>(context);
+    final photoProvider = Provider.of<PhotoProvider>(context);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (cameraProvider.controller == null) {
         cameraProvider.loadCameras();
       }
+      
+      // 현재 촬영 타입에 맞는 페이지로 이동
+      final currentIndex = _photoTypes.indexOf(photoProvider.currentPhotoType);
+      if (_pageController.hasClients && _pageController.page?.toInt() != currentIndex) {
+        _pageController.jumpToPage(currentIndex);
+      }
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('사진 촬영')),
-      body: cameraProvider.controller?.value.isInitialized ?? false
-          ? Column(
-              children: [
-                Container(
-                  padding: EdgeInsets.zero,
-                  child: CameraPreview(
-                    cameraProvider.controller!,
-                    child: const OvalGuide(),
+      appBar: AppBar(
+        title: Text('${photoProvider.currentPhotoType.label} 촬영'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => _confirmGoBack(context),
+        ),
+      ),
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            onPageChanged: (index) {
+              // 페이지 변경 시 촬영 타입 업데이트
+              photoProvider.setCurrentType(_photoTypes[index]);
+            },
+            itemCount: _photoTypes.length,
+            itemBuilder: (context, index) {
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      _getGuideText(_photoTypes[index]),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 16),
+                    ),
                   ),
-                ),
-                const Spacer(),
-              ],
-            )
-          : const Center(child: CircularProgressIndicator()),
+                  AspectRatio(
+                    aspectRatio: 3 / 4,
+                    child: cameraProvider.controller?.value.isInitialized ?? false
+                        ? ClipRect(
+                            child: CameraPreview(
+                              cameraProvider.controller!,
+                              child: const OvalGuide(),
+                            ),
+                          )
+                        : const Center(child: CircularProgressIndicator()),
+                  ),
+                  if (photoProvider.isCompleted) ...[  // 모든 사진이 촬영된 경우
+                    const SizedBox(height: 30),  // 30픽셀 간격
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const PhotoReviewScreen(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: const Text(
+                        '업로드 단계로 넘어가기',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                ],
+              );
+            },
+          ),
+          PhotoPreviewList(photos: photoProvider.photos),
+        ],
+      ),
       floatingActionButton: _buildActionButtons(context, cameraProvider),
     );
   }
@@ -74,16 +156,119 @@ class CameraScreen extends StatelessWidget {
       final image = await cameraProvider.controller?.takePicture();
       if (image == null || !context.mounted) return;
 
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => DisplayPictureScreen(
-            imagePath: image.path,
-            lensDirection: cameraProvider.currentCamera!.lensDirection,
+      // 전면 카메라로 촬영한 경우 이미지 반전
+      String imagePath = image.path;
+      if (cameraProvider.currentCamera?.lensDirection == CameraLensDirection.front) {
+        final flippedImage = await ImageUtils.flipImage(File(imagePath));
+        imagePath = flippedImage.path;
+      }
+
+      final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
+      
+      // 이미 해당 타입의 사진이 있는 경우
+      if (photoProvider.hasPhotoForType(photoProvider.currentPhotoType)) {
+        final shouldUpdate = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('사진 수정'),
+            content: const Text('이미 촬영된 사진이 있습니다. 새로운 사진으로 수정하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('아니오'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('예'),
+              ),
+            ],
           ),
-        ),
-      );
+        );
+
+        if (shouldUpdate == true) {
+          photoProvider.updatePhoto(imagePath);
+        }
+      } else {
+        // 새로운 사진 추가
+        photoProvider.addPhoto(imagePath);
+      }
+
+      // 모든 사진이 촬영된 경우 확인 다이얼로그 표시
+      if (photoProvider.isCompleted && mounted) {
+        final shouldReview = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('사진 확인'),
+            content: const Text('촬영한 사진을 확인할까요?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('아니오'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('예'),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldReview == true && mounted) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const PhotoReviewScreen(),
+            ),
+          );
+        }
+      }
     } catch (e) {
       debugPrint('Error taking picture: $e');
+    }
+  }
+
+  String _getGuideText(FacePhotoType type) {
+    switch (type) {
+      case FacePhotoType.front:
+        return '얼굴을 정면으로 바라보고 촬영해주세요';
+      case FacePhotoType.left:
+        return '얼굴을 왼쪽으로 돌려 촬영해주세요';
+      case FacePhotoType.right:
+        return '얼굴을 오른쪽으로 돌려 촬영해주세요';
+      default:
+        throw UnimplementedError('Unsupported photo type: $type');
+    }
+  }
+
+  Future<void> _confirmGoBack(BuildContext context) async {
+    final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
+    
+    if (photoProvider.hasAnyPhotos) {
+      final shouldDelete = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('사진 삭제'),
+          content: const Text('저장된 사진을 삭제할까요?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('아니오'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('예'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldDelete == true) {
+        photoProvider.reset();
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      }
+    } else {
+      Navigator.of(context).pop();
     }
   }
 } 

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
 import 'services/service_locator.dart';
 import 'providers/camera_provider.dart';
+import 'providers/photo_provider.dart';
 
 /// 앱의 진입점 및 전역 설정 관리
 /// - Provider 설정
@@ -16,6 +17,7 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => getIt<CameraProvider>()),
+        ChangeNotifierProvider(create: (_) => PhotoProvider()),
       ],
       child: const MyApp(),
     ),
