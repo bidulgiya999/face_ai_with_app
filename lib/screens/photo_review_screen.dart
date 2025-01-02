@@ -135,14 +135,18 @@ class _PhotoReviewScreenState extends State<PhotoReviewScreen> {
       });
 
       if (mounted) {
+        // 사진 초기화
+        photoProvider.reset();
+
+        // 업로드 완료 후 홈 화면으로 이동
+        Navigator.of(context).popUntil((route) => route.isFirst);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('모든 사진이 업로드되었습니다!'),
             backgroundColor: Colors.green,
           ),
         );
-        // 업로드 완료 후 홈 화면으로 이동
-        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       setState(() {
