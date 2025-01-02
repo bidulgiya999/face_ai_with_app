@@ -1,6 +1,7 @@
 import 'package:get_it/get_it.dart';
 import 'storage_service.dart';
 import '../providers/camera_provider.dart';
+import '../services/yolo_service.dart';
 
 final getIt = GetIt.instance;
 
@@ -13,4 +14,7 @@ void setupDependencies() {
   
   // Provider 등록
   getIt.registerFactory<CameraProvider>(() => CameraProvider());
+  
+  // 기존 코드...
+  getIt.registerLazySingleton<YOLOService>(() => YOLOService());
 } 

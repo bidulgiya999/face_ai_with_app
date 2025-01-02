@@ -4,6 +4,8 @@ import 'screens/home_screen.dart';
 import 'services/service_locator.dart';
 import 'providers/camera_provider.dart';
 import 'providers/photo_provider.dart';
+import 'screens/analysis_result_screen.dart';
+import 'models/yolo_result.dart';
 
 /// 앱의 진입점 및 전역 설정 관리
 /// - Provider 설정
@@ -40,6 +42,11 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const HomeScreen(),
+      routes: {
+        '/analysis_result': (context) => AnalysisResultScreen(
+          result: ModalRoute.of(context)!.settings.arguments as YOLOResult,
+        ),
+      },
     );
   }
 }

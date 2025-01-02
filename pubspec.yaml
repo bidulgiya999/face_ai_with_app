@@ -20,6 +20,7 @@ dependencies:
   path_provider: ^2.0.15  # 임시 파일 저장을 위한 패키지
   provider: ^6.0.5  # 상태 관리를 위한 provider 추가
   get_it: ^7.6.0   # 의존성 주입을 위한 get_it 추가
+  http: ^1.1.0
   
 
 dev_dependencies:
@@ -29,6 +30,5 @@ dev_dependencies:
 flutter:
   assets:
     - assets/sesac-24-109.json
-    - assets/images/
 
   

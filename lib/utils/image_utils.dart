@@ -3,6 +3,8 @@ import 'dart:io';
 //import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
+import 'package:camera/camera.dart';
+import '../providers/camera_provider.dart';
 
 /// 이미지 처리 유틸리티 클래스
 /// - 이미지 변환 기능
@@ -29,5 +31,13 @@ class ImageUtils {
     await flippedFile.writeAsBytes(img.encodeJpg(flippedImage));
     
     return flippedFile;
+  }
+
+  static Future<String> processImage(String path, CameraProvider cameraProvider) async {
+    if (cameraProvider.currentCamera?.lensDirection == CameraLensDirection.front) {
+      final flippedImage = await flipImage(File(path));
+      return flippedImage.path;
+    }
+    return path;
   }
 } 

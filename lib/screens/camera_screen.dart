@@ -15,6 +15,9 @@ import '../constants/photo_types.dart';
 import '../widgets/photo_preview.dart';
 import '../utils/image_utils.dart';
 import 'dart:io';
+import 'package:get_it/get_it.dart';
+import '../services/storage_service.dart';
+
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -195,11 +198,11 @@ class _CameraScreenState extends State<CameraScreen> {
 
       // 모든 사진이 촬영된 경우 확인 다이얼로그 표시
       if (photoProvider.isCompleted && mounted) {
-        final shouldReview = await showDialog<bool>(
+        final shouldUpload = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('사진 확인'),
-            content: const Text('촬영한 사진을 확인할까요?'),
+            title: const Text('사진 업로드'),
+            content: const Text('촬영한 사진을 업로드 하시겠습니까?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
@@ -213,12 +216,20 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
         );
 
-        if (shouldReview == true && mounted) {
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const PhotoReviewScreen(),
-            ),
-          );
+        if (shouldUpload == true && mounted) {
+          try {
+            final storageService = GetIt.I<StorageService>();
+            await storageService.uploadImage(File(imagePath));
+            
+            // 홈 화면으로 이동
+            if (mounted) {
+              Navigator.of(context).pop();
+            }
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('업로드 실패: $e')),
+            );
+          }
         }
       }
     } catch (e) {
