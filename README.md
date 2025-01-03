@@ -73,13 +73,13 @@ skindeep_project/
     flutter run
 
 2. **Cloud Run 서비스**
-    # 도커 이미지 빌드
+    도커 이미지 빌드
     docker build --platform linux/amd64 -t gcr.io/[PROJECT_ID]/yolo-inference .
 
-    # GCP에 이미지 푸시
+    GCP에 이미지 푸시
     docker push gcr.io/[PROJECT_ID]/yolo-inference
 
-    # Cloud Run 배포
+    Cloud Run 배포
     gcloud run deploy yolo-inference \ --image gcr.io/[PROJECT_ID]/yolo-inference \
 
 
