@@ -17,6 +17,8 @@ import '../utils/image_utils.dart';
 import 'dart:io';
 import 'package:get_it/get_it.dart';
 import '../services/storage_service.dart';
+import '../widgets/common_dialog.dart';
+import '../utils/error_utils.dart';
 
 
 class CameraScreen extends StatefulWidget {
@@ -170,22 +172,10 @@ class _CameraScreenState extends State<CameraScreen> {
       
       // 이미 해당 타입의 사진이 있는 경우
       if (photoProvider.hasPhotoForType(photoProvider.currentPhotoType)) {
-        final shouldUpdate = await showDialog<bool>(
+        final shouldUpdate = await showConfirmDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('사진 수정'),
-            content: const Text('이미 촬영된 사진이 있습니다. 새로운 사진으로 수정하시겠습니까?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('아니오'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('예'),
-              ),
-            ],
-          ),
+          title: '사진 수정',
+          content: '이미 촬영된 사진이 있습니다. 새로운 사진으로 수정하시겠습니까?',
         );
 
         if (shouldUpdate == true) {
@@ -198,42 +188,39 @@ class _CameraScreenState extends State<CameraScreen> {
 
       // 모든 사진이 촬영된 경우 확인 다이얼로그 표시
       if (photoProvider.isCompleted && mounted) {
-        final shouldUpload = await showDialog<bool>(
+        final shouldReview = await showConfirmDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('사진 업로드'),
-            content: const Text('촬영한 사진을 업로드 하시겠습니까?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('아니오'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('예'),
-              ),
-            ],
-          ),
+          title: '사진 확인',
+          content: '촬영한 사진을 확인하시겠습니까?',
         );
 
-        if (shouldUpload == true && mounted) {
-          try {
-            final storageService = GetIt.I<StorageService>();
-            await storageService.uploadImage(File(imagePath));
-            
-            // 홈 화면으로 이동
-            if (mounted) {
-              Navigator.of(context).pop();
+        if (shouldReview == true && mounted) {
+          // 사진 확인 화면으로 이동
+          final shouldUpload = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (context) => const PhotoReviewScreen(),
+            ),
+          );
+
+          // 사진 확인 화면에서 업로드 버튼을 눌렀을 때
+          if (shouldUpload == true && mounted) {
+            try {
+              final storageService = GetIt.I<StorageService>();
+              await storageService.uploadImage(File(imagePath));
+              
+              // 홈 화면으로 이동
+              if (mounted) {
+                showSuccessSnackBar(context, '사진이 성공적으로 업로드되었습니다');
+                Navigator.of(context).pop();
+              }
+            } catch (e) {
+              showErrorSnackBar(context, '업로드 실패: $e');
             }
-          } catch (e) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('업로드 실패: $e')),
-            );
           }
         }
       }
     } catch (e) {
-      debugPrint('Error taking picture: $e');
+      showErrorSnackBar(context, '사진 촬영 실패: $e');
     }
   }
 
@@ -254,22 +241,10 @@ class _CameraScreenState extends State<CameraScreen> {
     final photoProvider = Provider.of<PhotoProvider>(context, listen: false);
     
     if (photoProvider.hasAnyPhotos) {
-      final shouldDelete = await showDialog<bool>(
+      final shouldDelete = await showConfirmDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('사진 삭제'),
-          content: const Text('저장된 사진을 삭제할까요?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('아니오'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('예'),
-            ),
-          ],
-        ),
+        title: '사진 삭제',
+        content: '저장된 사진을 삭제할까요?',
       );
 
       if (shouldDelete == true) {
