@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 import '../providers/photo_provider.dart';
 import '../constants/photo_types.dart';
 import '../services/storage_service.dart';
+import 'analysis_result_screen.dart';
 
 class PhotoReviewScreen extends StatefulWidget {
   const PhotoReviewScreen({super.key});
@@ -122,49 +123,40 @@ class _PhotoReviewScreenState extends State<PhotoReviewScreen> {
     });
 
     try {
+      // 이미지 URL 저장용 맵
+      Map<String, String> uploadedUrls = {};
+      
+      // 이미지 업로드
       for (var entry in photoProvider.photos.entries) {
         if (entry.value != null) {
           File imageFile = File(entry.value!);
           final fileName = '${entry.key.name}_${DateTime.now().millisecondsSinceEpoch}${path.extension(entry.value!)}';
-          await _storageService.uploadImage(imageFile, fileName: fileName);
+          final url = await _storageService.uploadImage(imageFile, fileName: fileName);
+          if (url != null) {
+            uploadedUrls[entry.key.name] = url;
+          }
         }
       }
+
+      // Cloud Run 분석 요청
+      final analysisResult = await _storageService.requestAnalysis(uploadedUrls);
       
       setState(() {
         _isUploading = false;
       });
 
       if (mounted) {
-        // 업로드 완료 다이얼로그 표시
-        await showDialog(
-          context: context,
-          barrierDismissible: false, // 배경 터치로 닫기 방지
-          builder: (context) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green),
-                SizedBox(width: 8),
-                Text('업로드 완료'),
-              ],
-            ),
-            content: const Text('모든 사진이 업로드되었습니다!'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  // 사진 초기화
-                  photoProvider.reset();
-                  // 홈 화면으로 이동
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-                child: const Text('확인'),
-              ),
-            ],
+        // 분석 결과 화면으로 이동
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AnalysisResultScreen(result: analysisResult),
           ),
         );
       }
     } catch (e) {
       setState(() {
-        _errorMessage = '업로드 실패: $e';
+        _errorMessage = '업로드/분석 실패: $e';
         _isUploading = false;
       });
     }

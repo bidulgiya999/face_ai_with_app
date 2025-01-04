@@ -52,21 +52,15 @@ class CameraProvider extends ChangeNotifier {
     if (_cameras.length < 2) return;
 
     final lensDirection = _currentCamera?.lensDirection;
-    CameraDescription? newCamera;
+    final newCamera = lensDirection == CameraLensDirection.front
+      ? _cameras.firstWhere(
+          (camera) => camera.lensDirection == CameraLensDirection.back,
+        )
+      : _cameras.firstWhere(
+          (camera) => camera.lensDirection == CameraLensDirection.front,
+        );
 
-    if (lensDirection == CameraLensDirection.front) {
-      newCamera = _cameras.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.back,
-      );
-    } else {
-      newCamera = _cameras.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.front,
-      );
-    }
-
-    if (newCamera != null) {
-      await initializeCamera(newCamera);
-    }
+    await initializeCamera(newCamera);
   }
 
   @override

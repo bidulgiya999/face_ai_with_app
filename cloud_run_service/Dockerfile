@@ -16,7 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p /app/model && chmod 755 /app/model
 
 # 앱 파일 복사
-COPY . .
+COPY ./model ./model
+COPY ./service-account-key.json ./service-account-key.json
+COPY main.py .
 
 # 디버깅을 위한 파일 체크
 RUN ls -la /app/model/

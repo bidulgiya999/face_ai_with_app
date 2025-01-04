@@ -5,12 +5,21 @@ from google.cloud import storage
 import tempfile
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import shutil
 from PIL import Image, ExifTags
+from google.oauth2 import service_account
+from google.auth import compute_engine
 
 app = FastAPI()
 model = YOLO('model/best.pt')
+
+# 서비스 계정 키 사용 (Dockerfile에서 복사한 경로와 일치)
+credentials = service_account.Credentials.from_service_account_file(
+    'service-account-key.json',  # Dockerfile에서 복사된 파일명
+    scopes=['https://www.googleapis.com/auth/cloud-platform']
+)
+storage_client = storage.Client(credentials=credentials)
 
 class ImageRequest(BaseModel):
     front_image: str  # gs://skindeep_project/front.jpg
@@ -20,39 +29,35 @@ class ImageRequest(BaseModel):
 @app.post("/analyze")
 async def analyze_faces(request: ImageRequest):
     try:
-        # Cloud Storage 클라이언트 초기화
-        storage_client = storage.Client()
-        source_bucket = storage_client.bucket("skindeep_project")
-        result_bucket = storage_client.bucket("skindeep_project_result")
+        print(f"Received request: {request}")  # 요청 데이터 출력
         
+        # Cloud Storage 클라이언트 초기화
+        try:
+            storage_client = storage.Client()
+            source_bucket = storage_client.bucket("skindeep_project")
+            result_bucket = storage_client.bucket("skindeep_project_result")
+        except Exception as e:
+            print(f"Storage client initialization error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Storage initialization failed: {str(e)}")
+
         # 임시 디렉토리 생성
         temp_dir = tempfile.mkdtemp()
-        
-        # 이미지 다운로드
-        image_paths = []
-        for image_url in [request.front_image, request.left_image, request.right_image]:
-            blob_path = image_url.split("skindeep_project/")[-1]
-            local_path = os.path.join(temp_dir, os.path.basename(blob_path))
-            blob = source_bucket.blob(blob_path)
-            blob.download_to_filename(local_path)
-            
-            # 이미지 방향 보정
-            img = Image.open(local_path)
-            try:
-                for orientation in ExifTags.TAGS.keys():
-                    if ExifTags.TAGS[orientation] == 'Orientation':
-                        break
-                exif = dict(img._getexif().items())
-                if exif[orientation] == 3:
-                    img = img.rotate(180, expand=True)
-                elif exif[orientation] == 6:
-                    img = img.rotate(270, expand=True)
-                elif exif[orientation] == 8:
-                    img = img.rotate(90, expand=True)
-            except (AttributeError, KeyError, IndexError):
-                pass
-            img.save(local_path)
-            image_paths.append(local_path)
+        print(f"Created temp directory: {temp_dir}")
+
+        try:
+            # 이미지 다운로드 시도
+            image_paths = []
+            for image_url in [request.front_image, request.left_image, request.right_image]:
+                print(f"Downloading image from: {image_url}")  # 각 이미지 URL 출력
+                blob_path = image_url.split("skindeep_project/")[-1]
+                local_path = os.path.join(temp_dir, os.path.basename(blob_path))
+                blob = source_bucket.blob(blob_path)
+                blob.download_to_filename(local_path)
+                image_paths.append(local_path)
+                print(f"Successfully downloaded: {local_path}")
+        except Exception as e:
+            print(f"Image download error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Image download failed: {str(e)}")
 
         # 결과 저장을 위한 임시 디렉토리
         output_dir = os.path.join(temp_dir, 'results')
@@ -108,26 +113,31 @@ async def analyze_faces(request: ImageRequest):
             content_type='application/json'
         )
 
-        # 임시 파일 정리
-        try:
-            # 파일들 삭제
-            for path in image_paths:
-                os.remove(path)
-            
-            # 결과 디렉토리와 그 내용물 모두 삭제
-            shutil.rmtree(output_dir)
-            shutil.rmtree(temp_dir)
-        except Exception as e:
-            print(f"Error cleaning up temporary files: {e}")
+        # 결과 이미지에 대한 서명된 URL 생성
+        signed_urls = []
+        for result_image in result_image_urls:
+            blob = result_bucket.blob(result_image.replace('gs://skindeep_project_result/', ''))
+            url = blob.generate_signed_url(
+                version="v4",
+                expiration=datetime.utcnow() + timedelta(hours=1),
+                method="GET",
+                service_account_email='your-service-account@your-project.iam.gserviceaccount.com',
+                credentials=credentials
+            )
+            signed_urls.append(url)
 
         return {
             "status": "success",
             "result_file": f"gs://skindeep_project_result/results/{timestamp}_analysis.json",
-            "result_images": result_image_urls
+            "result_images": signed_urls
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error: {str(e)}")
+        print(f"Traceback: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}\n{error_trace}")
 
 @app.get("/")
 async def root():

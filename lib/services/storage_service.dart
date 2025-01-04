@@ -4,12 +4,14 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:googleapis/storage/v1.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:path/path.dart' as path;
+import 'package:http/http.dart' as http;
 
 /// GCP 스토리지 서비스 클래스
 /// - 스토리지 초기화
 /// - 이미지 업로드
 class StorageService {
   static const _bucketName = 'skindeep_project';
+  static const _resultBucketName = 'skindeep_project_result';
   late final ServiceAccountCredentials _credentials;
 
   /// 스토리지 서비스 초기화
@@ -39,7 +41,7 @@ class StorageService {
 
       final storage = StorageApi(client);
       
-      fileName ??= 'face_image_${DateTime.now().millisecondsSinceEpoch}${path.extension(imageFile.path)}';
+      fileName ??= '${DateTime.now().millisecondsSinceEpoch}_${path.basename(imageFile.path)}'; // 파일 이름 생성
 
       final fileContent = await imageFile.readAsBytes();
       final media = Media(
@@ -57,6 +59,47 @@ class StorageService {
     } catch (e) {
       print('Upload error: $e');
       return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> requestAnalysis(Map<String, String> imageUrls) async {
+    const cloudRunUrl = 'https://yolo-inference-sesac-hnvs3juqba-uc.a.run.app/analyze';
+    
+    try {
+      print('Sending analysis request with URLs: $imageUrls');  // 요청 로깅
+      
+      final response = await http.post(
+        Uri.parse(cloudRunUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'front_image': imageUrls['front'],
+          'left_image': imageUrls['left'],
+          'right_image': imageUrls['right'],
+        }),
+      );
+
+      print('Received response with status: ${response.statusCode}');  // 응답 상태 로깅
+      print('Response body: ${response.body}');  // 응답 내용 로깅
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('분석 요청 실패: ${response.statusCode}\n${response.body}');
+      }
+    } catch (e) {
+      print('분석 요청 오류: $e');
+      rethrow;
+    }
+  }
+
+  Future<String> getSignedUrl(String gcsUrl) async {
+    try {
+      final publicUrl = gcsUrl.replaceFirst('gs://', 'https://storage.googleapis.com/');
+      print('Accessing result image at: $publicUrl');  // 디버깅용
+      return publicUrl;
+    } catch (e) {
+      print('Error getting URL: $e');
+      rethrow;
     }
   }
 } 
