@@ -53,14 +53,6 @@ class _PhotoReviewScreenState extends State<PhotoReviewScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => _confirmGoBack(context),
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(true);
-            },
-            child: const Text('업로드'),
-          ),
-        ],
       ),
       body: Column(
         children: [

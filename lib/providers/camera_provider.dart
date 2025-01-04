@@ -15,42 +15,58 @@ class CameraProvider extends ChangeNotifier {
   /// 카메라 초기화
   /// - 카메라 컨트롤러 생성 및 초기화
   Future<void> initializeCamera(CameraDescription camera) async {
+    if (_controller != null) {
+      await _controller!.dispose();
+    }
+
     _currentCamera = camera;
     _controller = CameraController(
       camera,
-      ResolutionPreset.medium,
+      ResolutionPreset.high,
+      enableAudio: false,
     );
-    await _controller?.initialize();
-    notifyListeners();
+
+    try {
+      await _controller!.initialize();
+      notifyListeners();
+    } catch (e) {
+      print('카메라 초기화 오류: $e');
+      rethrow;
+    }
   }
 
   /// 카메라 목록 로드 및 초기화
   Future<void> loadCameras() async {
-    _cameras = await availableCameras();
-    if (_cameras.isNotEmpty) {
-      await initializeCamera(_cameras.first);
+    try {
+      _cameras = await availableCameras();
+      if (_cameras.isNotEmpty && _controller == null) {
+        await initializeCamera(_cameras[0]);
+      }
+    } catch (e) {
+      print('카메라 로드 오류: $e');
     }
   }
 
   /// 전/후면 카메라 전환
   Future<void> toggleCamera() async {
-    if (_currentCamera == null) return;
+    if (_cameras.length < 2) return;
 
-    final lensDirection = _currentCamera!.lensDirection;
-    CameraDescription newCamera;
-    
-    if (lensDirection == CameraLensDirection.back) {
-      newCamera = _cameras.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.front,
-      );
-    } else {
+    final lensDirection = _currentCamera?.lensDirection;
+    CameraDescription? newCamera;
+
+    if (lensDirection == CameraLensDirection.front) {
       newCamera = _cameras.firstWhere(
         (camera) => camera.lensDirection == CameraLensDirection.back,
       );
+    } else {
+      newCamera = _cameras.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
+      );
     }
 
-    await _controller?.dispose();
-    await initializeCamera(newCamera);
+    if (newCamera != null) {
+      await initializeCamera(newCamera);
+    }
   }
 
   @override

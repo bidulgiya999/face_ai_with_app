@@ -2,30 +2,31 @@
 피부 분석을 위한 얼굴 촬영 및 YOLO 기반 분석 서비스
 
 ## 프로젝트 구조
-
+```
 skindeep_project/
 ├── lib/
-│   ├── constants/ # 상수 정의 (사진 타입 등)
-│   ├── models/ # 데이터 모델
-│   ├── providers/ # 상태 관리 (카메라, 사진)
-│   ├── screens/ # 화면 UI
-│   │   ├── camera_screen.dart # 카메라 촬영 화면
-│   │   ├── home_screen.dart # 홈 화면
+│   ├── constants/          # 상수 정의 (사진 타입 등)
+│   ├── models/            # 데이터 모델
+│   ├── providers/         # 상태 관리 (카메라, 사진)
+│   ├── screens/           # 화면 UI
+│   │   ├── camera_screen.dart      # 카메라 촬영 화면
+│   │   ├── home_screen.dart        # 홈 화면
 │   │   └── photo_review_screen.dart # 사진 확인 화면
-│   ├── services/ # 외부 서비스 연동
-│   │   └── storage_service.dart # GCP 스토리지 서비스
-│   ├── utils/ # 유틸리티 함수
-│   │   ├── error_utils.dart # 에러 처리
-│   │   └── image_utils.dart # 이미지 처리
-│   └── widgets/ # 재사용 가능한 위젯
-│       ├── common_dialog.dart # 공통 다이얼로그
-│       └── oval_guide.dart # 얼굴 가이드 오버레이
-│       └── photo_preview.dart # 사진 미리보기
+│   ├── services/          # 외부 서비스 연동
+│   │   └── storage_service.dart    # GCP 스토리지 서비스
+│   ├── utils/            # 유틸리티 함수
+│   │   ├── error_utils.dart       # 에러 처리
+│   │   └── image_utils.dart       # 이미지 처리
+│   └── widgets/          # 재사용 가능한 위젯
+│       ├── common_dialog.dart     # 공통 다이얼로그
+│       ├── oval_guide.dart        # 얼굴 가이드 오버레이
+│       └── photo_preview.dart     # 사진 미리보기
 │
-└── cloud_run_service/ # Cloud Run 서비스
-    ├── main.py # FastAPI 서버 (YOLO 분석)
-    ├── Dockerfile # 컨테이너 설정
-    └── requirements.txt # Python 패키지 의존성
+└── cloud_run_service/    # Cloud Run 서비스
+    ├── main.py           # FastAPI 서버 (YOLO 분석)
+    ├── Dockerfile        # 컨테이너 설정
+    └── requirements.txt  # Python 패키지 의존성
+```
 
 
 ## 주요 기능
