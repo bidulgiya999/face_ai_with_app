@@ -22,12 +22,17 @@ class CameraProvider extends ChangeNotifier {
     _currentCamera = camera;
     _controller = CameraController(
       camera,
-      ResolutionPreset.high,
+      ResolutionPreset.medium,
       enableAudio: false,
     );
 
     try {
       await _controller!.initialize();
+      
+      // 현재 해상도 확인
+      final size = _controller!.value.previewSize!;
+      print('Camera preview size: ${size.width}x${size.height}');
+      
       notifyListeners();
     } catch (e) {
       print('카메라 초기화 오류: $e');
