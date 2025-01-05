@@ -11,7 +11,7 @@ import 'package:http/http.dart' as http;
 /// - 이미지 업로드
 class StorageService {
   static const _bucketName = 'skindeep_project';
-  static const _resultBucketName = 'skindeep_project_result';
+  // static const _resultBucketName = 'skindeep_project_result';
   late final ServiceAccountCredentials _credentials;
 
   /// 스토리지 서비스 초기화
