@@ -5,6 +5,7 @@ import 'package:googleapis/storage/v1.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:path/path.dart' as path;
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 
 /// GCP 스토리지 서비스 클래스
 /// - 스토리지 초기화
@@ -34,6 +35,16 @@ class StorageService {
   /// - 파일 업로드 및 URL 반환
   Future<String?> uploadImage(File imageFile, {String? fileName}) async {
     try {
+      // 이미지 로드 및 메타데이터 제거
+      final bytes = await imageFile.readAsBytes();
+      final image = img.decodeImage(bytes);
+      if (image == null) return null;
+      
+      // 새로운 이미지로 저장 (메타데이터 없이)
+      final cleanImageFile = File(imageFile.path.replaceAll('.jpg', '_clean.jpg'));
+      await cleanImageFile.writeAsBytes(img.encodeJpg(image));
+
+      // 정리된 이미지 업로드
       final client = await clientViaServiceAccount(
         _credentials,
         [StorageApi.devstorageFullControlScope],
@@ -41,9 +52,9 @@ class StorageService {
 
       final storage = StorageApi(client);
       
-      fileName ??= '${DateTime.now().millisecondsSinceEpoch}_${path.basename(imageFile.path)}'; // 파일 이름 생성
+      fileName ??= '${DateTime.now().millisecondsSinceEpoch}_${path.basename(imageFile.path)}';
 
-      final fileContent = await imageFile.readAsBytes();
+      final fileContent = await cleanImageFile.readAsBytes();
       final media = Media(
         Stream.fromIterable([fileContent]),
         fileContent.length,
@@ -54,6 +65,9 @@ class StorageService {
         _bucketName,
         uploadMedia: media,
       );
+
+      // 임시 파일 삭제
+      await cleanImageFile.delete();
 
       return 'https://storage.googleapis.com/$_bucketName/$fileName';
     } catch (e) {
