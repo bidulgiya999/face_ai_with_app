@@ -13,7 +13,6 @@ class CameraProvider extends ChangeNotifier {
   CameraDescription? get currentCamera => _currentCamera;
 
   /// 카메라 초기화
-  /// - 카메라 컨트롤러 생성 및 초기화
   Future<void> initializeCamera(CameraDescription camera) async {
     if (_controller != null) {
       await _controller!.dispose();
@@ -28,14 +27,8 @@ class CameraProvider extends ChangeNotifier {
 
     try {
       await _controller!.initialize();
-      
-      // 현재 해상도 확인
-      final size = _controller!.value.previewSize!;
-      print('Camera preview size: ${size.width}x${size.height}');
-      
       notifyListeners();
     } catch (e) {
-      print('카메라 초기화 오류: $e');
       rethrow;
     }
   }
@@ -44,28 +37,43 @@ class CameraProvider extends ChangeNotifier {
   Future<void> loadCameras() async {
     try {
       _cameras = await availableCameras();
-      if (_cameras.isNotEmpty && _controller == null) {
-        await initializeCamera(_cameras[0]);
+      if (_cameras.isNotEmpty) {
+        final frontCamera = _cameras.firstWhere(
+          (camera) => camera.lensDirection == CameraLensDirection.front,
+          orElse: () => _cameras.first,
+        );
+        await initializeCamera(frontCamera);
       }
     } catch (e) {
-      print('카메라 로드 오류: $e');
+      rethrow;
     }
   }
 
   /// 전/후면 카메라 전환
   Future<void> toggleCamera() async {
-    if (_cameras.length < 2) return;
+    if (_cameras.isEmpty) {
+      await loadCameras();
+      return;
+    }
 
-    final lensDirection = _currentCamera?.lensDirection;
-    final newCamera = lensDirection == CameraLensDirection.front
-      ? _cameras.firstWhere(
+    try {
+      final lensDirection = _currentCamera?.lensDirection;
+      CameraDescription? newCamera;
+      if (lensDirection == CameraLensDirection.front) {
+        newCamera = _cameras.firstWhere(
           (camera) => camera.lensDirection == CameraLensDirection.back,
-        )
-      : _cameras.firstWhere(
-          (camera) => camera.lensDirection == CameraLensDirection.front,
+          orElse: () => _cameras.first,
         );
-
-    await initializeCamera(newCamera);
+      } else {
+        newCamera = _cameras.firstWhere(
+          (camera) => camera.lensDirection == CameraLensDirection.front,
+          orElse: () => _cameras.first,
+        );
+      }
+      await initializeCamera(newCamera);
+    } catch (e) {
+      rethrow;
+    }
   }
 
   @override

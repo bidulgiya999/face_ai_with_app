@@ -49,12 +49,12 @@ class _CameraScreenState extends State<CameraScreen> {
     final cameraProvider = Provider.of<CameraProvider>(context);
     final photoProvider = Provider.of<PhotoProvider>(context);
 
+    // 카메라 초기화 및 페이지 이동
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (cameraProvider.controller == null) {
         cameraProvider.loadCameras();
       }
       
-      // 현재 촬영 타입에 맞는 페이지로 이동
       final currentIndex = _photoTypes.indexOf(photoProvider.currentPhotoType);
       if (_pageController.hasClients && _pageController.page?.toInt() != currentIndex) {
         _pageController.jumpToPage(currentIndex);
