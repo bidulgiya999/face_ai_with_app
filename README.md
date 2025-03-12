@@ -1,6 +1,6 @@
 # 팀원
-황승재 : 
-신민재 : 
+황승재 : https://github.com/bidulgiya999
+신민재 : https://github.com/astra7000
 
 # SkinDeep Project
 피부 분석을 위한 얼굴 촬영 및 YOLO 기반 분석 서비스
